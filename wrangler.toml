@@ -1,9 +1,6 @@
 name = "a-share-tmt-daily-review"
-main = "./index.html"
+main = "./_worker.js"
 compatibility_date = "2025-01-01"
 
-[site]
-bucket = "./"
-
-[env.production]
-route = { pattern = "*", zone_name = "" }
+[assets]
+directory = "./"
