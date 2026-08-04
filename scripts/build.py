@@ -1,0 +1,303 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""生成每日复盘 HTML（浅色主题，涨红跌绿）"""
+import json, os, html
+
+OUT = os.path.dirname(os.path.abspath(__file__))
+SITE = os.path.join(OUT, 'site')
+os.makedirs(SITE, exist_ok=True)
+
+S = json.load(open(os.path.join(OUT, 'data_stocks.json')))
+M = json.load(open(os.path.join(OUT, 'data_market.json')))
+N = json.load(open(os.path.join(OUT, 'news.json')))
+
+SRC = {s['id']: s for s in N['sources']}
+DT = S['trade_dt']
+DTF = f"{DT[:4]}-{DT[4:6]}-{DT[6:]}"
+e = lambda x: html.escape(str(x if x is not None else '—'))
+
+
+def cls(v):
+    """涨红跌绿"""
+    if v is None: return 'flat'
+    return 'up' if v > 0 else ('down' if v < 0 else 'flat')
+
+
+def pct(v, d=2):
+    if v is None: return '—'
+    return f"{v:+.{d}f}%"
+
+
+def num(v, d=2):
+    if v is None: return '—'
+    return f"{v:,.{d}f}"
+
+
+def links(ids):
+    if not ids: return '<span class="nosrc">无直接对应新闻</span>'
+    return ' '.join(
+        f'<a class="src" href="{e(SRC[i]["url"])}" target="_blank" rel="noopener" '
+        f'title="{e(SRC[i]["title"])}">{e(SRC[i]["media"])}↗</a>'
+        for i in ids if i in SRC)
+
+
+CSS = """
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f5f6f8;color:#1a1d23;font:14px/1.65 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;padding:0 0 60px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+header{background:linear-gradient(135deg,#fff 0%,#eef2f7 100%);border-bottom:1px solid #dfe3e8;padding:32px 0 26px;margin-bottom:24px}
+h1{font-size:26px;font-weight:700;letter-spacing:-.3px}
+.sub{color:#6b7280;font-size:13px;margin-top:8px}
+h2{font-size:19px;margin:34px 0 14px;padding-left:11px;border-left:4px solid #c9302c;font-weight:650}
+h3{font-size:15px;margin:20px 0 10px;color:#374151;font-weight:650}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f3f4f6;color:#4b5563;font-weight:600;text-align:right;padding:9px 8px;border-bottom:2px solid #e5e7eb;white-space:nowrap;font-size:12px}
+th:nth-child(-n+3),td:nth-child(-n+3){text-align:left}
+td{padding:8px;border-bottom:1px solid #f1f2f4;text-align:right;white-space:nowrap}
+tr:hover td{background:#fafbfc}
+.up{color:#c0392b;font-weight:600}
+.down{color:#18874a;font-weight:600}
+.flat{color:#6b7280}
+.rk{color:#9ca3af;font-size:12px;width:30px}
+.nm{font-weight:600}
+.cd{color:#9ca3af;font-size:11.5px;font-family:ui-monospace,Menlo,monospace}
+.tag{display:inline-block;background:#eef2f7;color:#4b5563;border-radius:4px;padding:1px 7px;font-size:11.5px;margin-left:4px}
+.src{display:inline-block;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:4px;padding:1px 7px;font-size:11.5px;text-decoration:none;margin:2px 3px 2px 0}
+.src:hover{background:#c0392b;color:#fff;border-color:#c0392b}
+.nosrc{color:#9ca3af;font-size:11.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.kpi{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:15px}
+.kpi .lb{color:#6b7280;font-size:12px;margin-bottom:6px}
+.kpi .vl{font-size:23px;font-weight:700;letter-spacing:-.5px}
+.kpi .ex{color:#9ca3af;font-size:11.5px;margin-top:5px}
+.dyn{border-left:3px solid #e5e7eb;padding:11px 0 11px 14px;margin-bottom:13px}
+.dyn .t{font-weight:650;margin-bottom:5px;font-size:14.5px}
+.dyn .d{color:#4b5563;font-size:13px;margin-bottom:7px}
+.bar{height:7px;background:#eef2f7;border-radius:4px;overflow:hidden;min-width:60px;display:inline-block;vertical-align:middle;width:70px}
+.bar i{display:block;height:100%;border-radius:4px}
+.note{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:13px;font-size:13px;color:#78350f;margin-bottom:16px}
+.crowd{font-weight:700}
+.c-hi{color:#c0392b}.c-mid{color:#d97706}.c-lo{color:#18874a}
+footer{color:#9ca3af;font-size:12px;text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb}
+.tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:15px}
+.tab{background:#fff;border:1px solid #dfe3e8;border-radius:20px;padding:6px 16px;cursor:pointer;font-size:13px;font-weight:600;color:#4b5563}
+.tab.on{background:#c0392b;color:#fff;border-color:#c0392b}
+.pane{display:none}.pane.on{display:block}
+@media(max-width:640px){table{font-size:12px}td,th{padding:6px 4px}h1{font-size:21px}}
+"""
+
+
+def stock_table(rows, title):
+    h = [f'<h3>{e(title)}</h3><table><thead><tr><th>#</th><th>名称</th><th>申万二级</th>'
+         '<th>涨跌幅</th><th>收盘</th><th>成交额(亿)</th><th>换手率</th><th>自由换手</th>'
+         '<th>总市值(亿)</th><th>PE(TTM)</th><th>驱动因素 / 新闻来源</th></tr></thead><tbody>']
+    for i, r in enumerate(rows, 1):
+        info = N['stocks'].get(r['code'])
+        why = (f'<div class="d">{e(info["why"])}</div>{links(info["src"])}'
+               if info else '<span class="nosrc">未检索到该股专项新闻，归因见行业级驱动</span>')
+        h.append(
+            f'<tr><td class="rk">{i}</td>'
+            f'<td class="nm">{e(r["name"])}<div class="cd">{e(r["code"])}</div></td>'
+            f'<td><span class="tag">{e(r["sub"])}</span></td>'
+            f'<td class="{cls(r["pct"])}">{pct(r["pct"])}</td>'
+            f'<td>{num(r["close"])}</td>'
+            f'<td>{num((r["amount"] or 0)/1e5)}</td>'
+            f'<td>{num(r["turn"])}</td><td>{num(r["freeturn"])}</td>'
+            f'<td>{num((r["mv"] or 0)/1e4,1)}</td><td>{num(r["pe"],1)}</td>'
+            f'<td style="text-align:left;white-space:normal;min-width:300px;max-width:460px">{why}</td></tr>')
+    h.append('</tbody></table>')
+    return ''.join(h)
+
+
+def index_table():
+    h = ['<table><thead><tr><th>指数</th><th>代码</th><th>涨跌幅</th><th>收盘</th>'
+         '<th>成交额(亿)</th><th>5日均量(亿)</th><th>20日均量(亿)</th>'
+         '<th>量比(5日)</th><th>量比(20日)</th></tr></thead><tbody>']
+    for i in M['indexes']:
+        v = i['vr20']
+        vc = 'up' if v and v > 1.1 else ('down' if v and v < 0.9 else 'flat')
+        h.append(f'<tr><td class="nm">{e(i["name"])}</td><td class="cd">{e(i["code"])}</td>'
+                 f'<td class="{cls(i["pct"])}">{pct(i["pct"])}</td><td>{num(i["close"])}</td>'
+                 f'<td>{num(i["amt_yi"],1)}</td><td>{num(i["ma5_yi"],1)}</td>'
+                 f'<td>{num(i["ma20_yi"],1)}</td><td>{num(i["vr5"])}</td>'
+                 f'<td class="{vc}">{num(v)}</td></tr>')
+    h.append('</tbody></table>')
+    return ''.join(h)
+
+
+def etf_table():
+    h = ['<table><thead><tr><th>#</th><th>ETF 名称</th><th>代码</th><th>涨跌幅</th>'
+         '<th>收盘</th><th>成交额(亿)</th><th>5日均量(亿)</th><th>20日均量(亿)</th>'
+         '<th>量比(20日)</th></tr></thead><tbody>']
+    for i, f in enumerate(M['etfs'][:30], 1):
+        v = f['vr20']
+        vc = 'up' if v and v > 1.1 else ('down' if v and v < 0.9 else 'flat')
+        h.append(f'<tr><td class="rk">{i}</td><td class="nm">{e(f["name"])}</td>'
+                 f'<td class="cd">{e(f["code"])}</td>'
+                 f'<td class="{cls(f["pct"])}">{pct(f["pct"])}</td><td>{num(f["close"],3)}</td>'
+                 f'<td>{num(f["amt_yi"])}</td><td>{num(f["ma5_yi"])}</td>'
+                 f'<td>{num(f["ma20_yi"])}</td><td class="{vc}">{num(v)}</td></tr>')
+    h.append('</tbody></table>')
+    return ''.join(h)
+
+
+def crowd_table():
+    h = ['<table><thead><tr><th>行业</th><th>今日成交占比</th><th>20日均值</th>'
+         '<th>60日分位</th><th>拥挤状态</th><th>换手中位数</th><th>换手均值</th>'
+         '<th>加权涨跌幅</th></tr></thead><tbody>']
+    for ind, c in M['crowding'].items():
+        p = c['share_pctile_60d'] or 0
+        st, sc = ('极度拥挤', 'c-hi') if p >= 90 else \
+                 (('偏拥挤', 'c-mid') if p >= 70 else
+                  (('中性', 'c-mid') if p >= 40 else ('不拥挤', 'c-lo')))
+        iv = S['industries'][ind]
+        h.append(f'<tr><td class="nm">{e(ind)}</td><td>{num(c["share_now"],2)}%</td>'
+                 f'<td>{num(c["share_ma20"],2)}%</td>'
+                 f'<td class="crowd {sc}">{num(p,1)}%</td>'
+                 f'<td class="crowd {sc}">{st}</td>'
+                 f'<td>{num(c["turn_med"])}%</td><td>{num(c["turn_avg"])}%</td>'
+                 f'<td class="{cls(iv["pct_w"])}">{pct(iv["pct_w"])}</td></tr>')
+    h.append('</tbody></table>')
+    return ''.join(h)
+
+
+def leader_crowd():
+    """龙头股拥挤度：按成交额取各行业前8"""
+    h = ['<table><thead><tr><th>行业</th><th>龙头股</th><th>涨跌幅</th>'
+         '<th>成交额(亿)</th><th>换手率</th><th>自由流通换手</th><th>行业成交占比</th>'
+         '<th>拥挤信号</th></tr></thead><tbody>']
+    for ind, iv in S['industries'].items():
+        rows = sorted(iv['all'], key=lambda x: -(x['amount'] or 0))[:8]
+        tot = sum(r['amount'] or 0 for r in iv['all']) or 1
+        for j, r in enumerate(rows):
+            ft = r['freeturn'] or 0
+            sig, sc = ('过热', 'c-hi') if ft >= 15 else \
+                      (('偏热', 'c-mid') if ft >= 8 else ('正常', 'c-lo'))
+            h.append(f'<tr>{"<td class=nm>" + e(ind) + "</td>" if j == 0 else "<td></td>"}'
+                     f'<td class="nm">{e(r["name"])}<div class="cd">{e(r["code"])}</div></td>'
+                     f'<td class="{cls(r["pct"])}">{pct(r["pct"])}</td>'
+                     f'<td>{num((r["amount"] or 0)/1e5,1)}</td>'
+                     f'<td>{num(r["turn"])}%</td><td>{num(r["freeturn"])}%</td>'
+                     f'<td>{num((r["amount"] or 0)/tot*100)}%</td>'
+                     f'<td class="crowd {sc}">{sig}</td></tr>')
+    h.append('</tbody></table>')
+    return ''.join(h)
+
+
+def sub_table(subs):
+    mx = max((abs(s['pct']) for s in subs), default=1) or 1
+    h = ['<h3>申万二级行业涨跌幅排名（成交额加权）</h3><table><thead><tr><th>#</th>'
+         '<th>申万二级行业</th><th></th><th>加权涨跌幅</th><th>成交额(亿)</th>'
+         '<th>成分数</th><th>上涨</th><th>下跌</th></tr></thead><tbody>']
+    for i, s in enumerate(subs, 1):
+        col = '#c0392b' if s['pct'] > 0 else '#18874a'
+        w = abs(s['pct']) / mx * 100
+        h.append(f'<tr><td class="rk">{i}</td><td class="nm">{e(s["sub"])}</td>'
+                 f'<td><span class="bar"><i style="width:{w:.0f}%;background:{col}"></i></span></td>'
+                 f'<td class="{cls(s["pct"])}">{pct(s["pct"])}</td>'
+                 f'<td>{num(s["amt_yi"])}</td><td>{s["n"]}</td>'
+                 f'<td class="up">{s["up"]}</td><td class="down">{s["down"]}</td></tr>')
+    h.append('</tbody></table>')
+    return ''.join(h)
+
+
+def build():
+    p = []
+    p.append(f'''<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TMT 每日复盘 · {DTF}</title><style>{CSS}</style></head><body>
+<header><div class="wrap"><h1>TMT 四行业每日复盘 · {DTF}</h1>
+<div class="sub">电子 / 通信 / 计算机 / 传媒（申万一级） · 数据源 Wind 金融数据库 ·
+生成时间 {e(S["generated_at"][:19])}</div></div></header><div class="wrap">''')
+
+    # KPI
+    p.append('<div class="grid">')
+    for ind, iv in S['industries'].items():
+        c = M['crowding'][ind]
+        p.append(f'''<div class="kpi"><div class="lb">{e(ind)}（申万）成交额加权涨跌幅</div>
+<div class="vl {cls(iv["pct_w"])}">{pct(iv["pct_w"])}</div>
+<div class="ex">{iv["count"]} 只成分 · <span class="up">{iv["up"]}涨</span> /
+<span class="down">{iv["down"]}跌</span> · 成交 {num(iv["amt_yi"],0)} 亿 ·
+占全市场 {num(c["share_now"],2)}%（60日 {num(c["share_pctile_60d"],1)} 分位）</div></div>''')
+    p.append('</div>')
+
+    # 全景解读
+    p.append('<h2>一、当日市场全景与驱动</h2>')
+    p.append(f'''<div class="note"><b>一句话概括：</b>英伟达 CPO 官宣量产点燃光通信主线，
+叠加北美云厂 Capex 指引上修、存储与 PCB/电子布涨价、中微业绩预告验证国产替代，
+资金从银行等高股息板块极致切换至 AI 硬件。通信（申万）加权 <b>{pct(S["industries"]["通信"]["pct_w"])}</b>
+领涨，电子 <b>{pct(S["industries"]["电子"]["pct_w"])}</b>，创业板指 +5.64%，
+两市成交约 2.21 万亿元、放量逾 2000 亿元。</div>''')
+    p.append('<div class="card">')
+    for m in N['macro']:
+        p.append(f'<div class="dyn"><div class="t">{e(m["t"])}</div>'
+                 f'<div class="d">{e(m["d"])}</div>{links(m["src"])}</div>')
+    p.append('</div>')
+
+    # 分行业
+    p.append('<h2>二、分行业涨跌幅榜与归因</h2>')
+    p.append('<div class="tabs">')
+    for i, ind in enumerate(S['industries']):
+        p.append(f'<div class="tab{" on" if i == 0 else ""}" data-t="{i}">{e(ind)}</div>')
+    p.append('</div>')
+    for i, (ind, iv) in enumerate(S['industries'].items()):
+        p.append(f'<div class="pane{" on" if i == 0 else ""}" id="p{i}"><div class="card">')
+        p.append(f'<h3>{e(ind)}（申万一级）行业解读</h3>'
+                 f'<div class="dyn"><div class="d">{e(N["industry_view"][ind])}</div></div>')
+        p.append(sub_table(iv['subs']))
+        p.append('</div><div class="card">')
+        p.append(stock_table(iv['gainers'], f'{ind} · 涨幅前 {iv["topn"]}'))
+        p.append('</div><div class="card">')
+        p.append(stock_table(iv['losers'], f'{ind} · 跌幅前 {iv["topn"]}'))
+        p.append('</div></div>')
+
+    # 指数 ETF
+    p.append('<h2>三、相关指数与 ETF 成交量</h2>')
+    p.append('<div class="card"><h3>主要指数（按 20 日量比降序）</h3>'
+             '<div class="d" style="color:#6b7280;font-size:12.5px;margin-bottom:10px">'
+             '量比 = 当日成交额 / N 日均成交额。&gt;1.1 视为放量（红），&lt;0.9 视为缩量（绿）。</div>'
+             + index_table() + '</div>')
+    p.append('<div class="card"><h3>相关主题 ETF（按当日成交额降序 Top30）</h3>'
+             + etf_table() + '</div>')
+
+    # 拥挤度
+    p.append('<h2>四、交易拥挤度</h2>')
+    p.append('''<div class="note"><b>口径说明：</b>行业拥挤度以「该行业成交额占全市场成交额比重」
+为核心指标，并给出该比重在最近 60 个交易日中的分位数。分位 ≥90% 记为极度拥挤，70%-90% 偏拥挤，
+40%-70% 中性，&lt;40% 不拥挤。个股层面用自由流通换手率：≥15% 过热，8%-15% 偏热。</div>''')
+    p.append('<div class="card"><h3>行业层面拥挤度</h3>' + crowd_table() + '''
+<div class="dyn" style="margin-top:14px"><div class="d">
+<b>关键反差：</b>电子成交额占全市场 27.67%（绝对量最大），但该比重仅处 60 日 13.3% 分位——
+说明电子的相对拥挤度实际在低位，本轮上涨更接近拥挤度修复而非情绪见顶。
+反观传媒占比仅 3.38% 却处 98.3% 分位、计算机 96.7% 分位、通信 93.3% 分位，
+三者相对自身历史均已进入极度拥挤区间，其中传媒最为极端。
+这一结论与市场观察一致：7 月科技股因拥挤度过高导致资金回流银行避险，
+经半个月调整后科技拥挤度释放、本周发生逆转。</div>''' + links(['s7', 's9']) + '</div></div>')
+    p.append('<div class="card"><h3>行业龙头股拥挤度（各行业成交额前 8）</h3>'
+             + leader_crowd() + '</div>')
+
+    # 来源
+    p.append('<h2>五、新闻来源汇总</h2><div class="card">')
+    for s in N['sources']:
+        p.append(f'<div class="dyn"><div class="t"><a class="src" href="{e(s["url"])}" '
+                 f'target="_blank" rel="noopener">{e(s["media"])}↗</a> {e(s["title"])}</div>'
+                 f'<div class="cd">{e(s["url"])}</div></div>')
+    p.append('</div>')
+
+    p.append('''<footer>数据来源：Wind 金融数据库（行情/申万分类/指数/ETF）与公开财经媒体报道。
+本页面为量化复盘工具输出，所有内容仅供研究参考，不构成任何投资建议。</footer></div>
+<script>
+document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click',function(){
+document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')});
+document.querySelectorAll('.pane').forEach(function(x){x.classList.remove('on')});
+t.classList.add('on');document.getElementById('p'+t.dataset.t).classList.add('on');});});
+</script></body></html>''')
+
+    f = os.path.join(SITE, 'index.html')
+    open(f, 'w').write(''.join(p))
+    print('generated', f, os.path.getsize(f), 'bytes')
+
+
+if __name__ == '__main__':
+    build()
