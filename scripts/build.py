@@ -88,18 +88,20 @@ footer{color:#9ca3af;font-size:12px;text-align:center;margin-top:40px;padding-to
 """
 
 
-def stock_table(rows, title):
-    h = [f'<h3>{e(title)}</h3><table><thead><tr><th>#</th><th>名称</th><th>申万二级</th>'
+def stock_table(rows, title, show_l3=False):
+    sub_col = '<th>申万三级</th>' if show_l3 else ''
+    h = [f'<h3>{e(title)}</h3><table><thead><tr><th>#</th><th>名称</th><th>申万二级</th>{sub_col}'
          '<th>涨跌幅</th><th>收盘</th><th>成交额(亿)</th><th>换手率</th><th>自由换手</th>'
          '<th>总市值(亿)</th><th>PE(TTM)</th><th>驱动因素 / 新闻来源</th></tr></thead><tbody>']
     for i, r in enumerate(rows, 1):
         info = N['stocks'].get(r['code'])
         why = (f'<div class="d">{e(info["why"])}</div>{links(info["src"])}'
                if info else '<span class="nosrc">未检索到该股专项新闻，归因见行业级驱动</span>')
+        sub3_col = f'<td><span class="tag">{e(r["sub3"])}</span></td>' if show_l3 and r.get('sub3') else ('<td></td>' if show_l3 else '')
         h.append(
             f'<tr><td class="rk">{i}</td>'
             f'<td class="nm">{e(r["name"])}<div class="cd">{e(r["code"])}</div></td>'
-            f'<td><span class="tag">{e(r["sub"])}</span></td>'
+            f'<td><span class="tag">{e(r["sub"])}</span></td>{sub3_col}'
             f'<td class="{cls(r["pct"])}">{pct(r["pct"])}</td>'
             f'<td>{num(r["close"])}</td>'
             f'<td>{num((r["amount"] or 0)/1e5)}</td>'
@@ -186,14 +188,25 @@ def leader_crowd():
 
 
 def sub_table(subs):
+    return _sub_table_impl(subs)
+
+
+def semi_l3_table():
+    """半导体申万三级行业排名"""
+    sl = S.get('semiconductor_l3', [])
+    if not sl: return '<p>暂无半导体三级数据</p>'
+    return _sub_table_impl(sl, key='sub3', title='半导体申万三级行业涨跌幅排名（成交额加权）')
+
+
+def _sub_table_impl(subs, key='sub', title='申万二级行业涨跌幅排名（成交额加权）'):
     mx = max((abs(s['pct']) for s in subs), default=1) or 1
-    h = ['<h3>申万二级行业涨跌幅排名（成交额加权）</h3><table><thead><tr><th>#</th>'
-         '<th>申万二级行业</th><th></th><th>加权涨跌幅</th><th>成交额(亿)</th>'
+    h = [f'<h3>{title}</h3><table><thead><tr><th>#</th>'
+         f'<th>{("申万二级行业" if key=="sub" else "申万三级行业")}</th><th></th><th>加权涨跌幅</th><th>成交额(亿)</th>'
          '<th>成分数</th><th>上涨</th><th>下跌</th></tr></thead><tbody>']
     for i, s in enumerate(subs, 1):
         col = '#c0392b' if s['pct'] > 0 else '#18874a'
         w = abs(s['pct']) / mx * 100
-        h.append(f'<tr><td class="rk">{i}</td><td class="nm">{e(s["sub"])}</td>'
+        h.append(f'<tr><td class="rk">{i}</td><td class="nm">{e(s[key])}</td>'
                  f'<td><span class="bar"><i style="width:{w:.0f}%;background:{col}"></i></span></td>'
                  f'<td class="{cls(s["pct"])}">{pct(s["pct"])}</td>'
                  f'<td>{num(s["amt_yi"])}</td><td>{s["n"]}</td>'
@@ -252,7 +265,19 @@ def build():
         p.append(stock_table(iv['losers'], f'{ind} · 跌幅前 {iv["topn"]}'))
         p.append('</div></div>')
 
-    # 指数 ETF
+    # 半导体三级（附在分行业面板之后，作为独立卡片）
+    p.append('<h2>二·A、半导体（申万二级）→ 三级行业明细</h2>')
+    p.append('<div class="card">')
+    p.append('<div class="dyn"><div class="d">半导体 185 只成分全涨（仅半导体设备 1 只微跌），加权涨幅从分立器件 +11.05% 到数字芯片设计 +4.31%。结构上，分立器件领跑（18 只全涨，成交 268 亿），集成电路封测与模拟芯片设计紧随其后。数字芯片设计虽成交额最大（1574 亿）但涨幅最小，反映板块内部分化。</div></div>')
+    p.append(semi_l3_table())
+    semi_rows = [r for r in S['industries']['电子']['all'] if r.get('sub3')]
+    semi_rows.sort(key=lambda x: -x['pct'])
+    p.append(f'<div style="margin-top:20px">{stock_table(semi_rows[:20], "半导体 · 涨幅前 20", show_l3=True)}</div>')
+    p.append('<div style="margin-top:20px">')
+    semi_by_pct = sorted(semi_rows, key=lambda x: x['pct'])
+    p.append(stock_table(semi_by_pct[:10], "半导体 · 跌幅前 10", show_l3=True))
+    p.append('</div></div>')
+
     p.append('<h2>三、相关指数与 ETF 成交量</h2>')
     p.append('<div class="card"><h3>主要指数（按 20 日量比降序）</h3>'
              '<div class="d" style="color:#6b7280;font-size:12.5px;margin-bottom:10px">'

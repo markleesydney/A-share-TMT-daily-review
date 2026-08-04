@@ -3,9 +3,8 @@
 """每日复盘数据抽取：电子/通信/计算机/传媒（申万）"""
 import pymysql, json, os, datetime
 
-DB = dict(host=os.environ.get('WIND_DB_HOST', ''), user=os.environ.get('WIND_DB_USER', ''),
-          password=os.environ.get('WIND_DB_PASS', ''), database=os.environ.get('WIND_DB_NAME', 'financedata'),
-          port=int(os.environ.get('WIND_DB_PORT', 3306)), charset='utf8')
+DB = dict(host='quantstudio.mysql.rds.aliyuncs.com', user='ncamc-lify-all',
+          password='Gjquant_ncamc!', database='financedata', port=3306, charset='utf8')
 
 IND = {'电子': '7605', '通信': '760r', '计算机': '760p', '传媒': '760q'}
 TOPN = {'电子': 20, '通信': 10, '计算机': 10, '传媒': 10}
@@ -34,6 +33,9 @@ def main():
     # 1. 二级行业名称字典
     l3 = q(cur, "select INDUSTRIESCODE, INDUSTRIESNAME from ashareindustriescode where INDUSTRIESCODE like '76%%' and LEVELNUM=3")
     sub_name = {r['INDUSTRIESCODE'][:6]: r['INDUSTRIESNAME'] for r in l3}
+    # 1b. 三级行业名称字典（level=4，code前10位=SW_IND_CODE）
+    l4 = q(cur, "select INDUSTRIESCODE, INDUSTRIESNAME from ashareindustriescode where INDUSTRIESCODE like '760501%%' and LEVELNUM=4")
+    sub3_name = {r['INDUSTRIESCODE'][:10]: r['INDUSTRIESNAME'] for r in l4}
 
     # 2. 全部成分股 + 二级归属
     members = q(cur, "select S_INFO_WINDCODE, SW_IND_CODE from ashareswnindustriesclass where CUR_SIGN='1'")
@@ -60,9 +62,11 @@ def main():
             if not e or e['S_DQ_PCTCHANGE'] is None:
                 continue
             sub6 = m['SW_IND_CODE'][:6]
+            sub3 = sub3_name.get(m['SW_IND_CODE'], '') if m['SW_IND_CODE'].startswith('760501') else ''
             rows.append({
                 'code': c, 'name': names.get(c, c),
                 'sub': sub_name.get(sub6, '其他'), 'sub_code': sub6,
+                'sub3': sub3,
                 'close': f(e['S_DQ_CLOSE']), 'pct': f(e['S_DQ_PCTCHANGE']),
                 'amount': f(e['S_DQ_AMOUNT']), 'volume': f(e['S_DQ_VOLUME']),
                 'turn': f(d.get('S_DQ_TURN')), 'freeturn': f(d.get('S_DQ_FREETURNOVER')),
@@ -103,6 +107,25 @@ def main():
             'all': rows,
         }
         print(f"{ind}: {len(rows)}只 加权{data['industries'][ind]['pct_w']}% 成交{data['industries'][ind]['amt_yi']}亿 二级{len(sublist)}个")
+
+    # 半导体三级行业排名（仅电子下 760501 开头的股票）
+    semi3 = {v: {'sub3': v, 'n': 0, 'amt': 0.0, 'w': 0.0, 'up': 0, 'down': 0} for v in sub3_name.values()}
+    for r in data['industries']['电子']['all']:
+        if r['sub3']:
+            s = semi3[r['sub3']]
+            s['n'] += 1; a = r['amount'] or 0
+            s['amt'] += a; s['w'] += (r['pct'] or 0) * a
+            if r['pct'] > 0: s['up'] += 1
+            elif r['pct'] < 0: s['down'] += 1
+    semi_list = []
+    for s in semi3.values():
+        if s['n']:
+            s['pct'] = round(s['w'] / s['amt'], 3) if s['amt'] else 0.0
+            s['amt_yi'] = round(s['amt'] / 1e5, 2); del s['w'], s['amt']
+            semi_list.append(s)
+    semi_list.sort(key=lambda x: -x['pct'])
+    data['semiconductor_l3'] = semi_list
+    print(f"半导体三级: {len(semi_list)}个 {semi_list}")
 
     json.dump(data, open(os.path.join(OUT, 'data_stocks.json'), 'w'), ensure_ascii=False, indent=1)
     conn.close()
