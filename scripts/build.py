@@ -265,18 +265,39 @@ def build():
         p.append(stock_table(iv['losers'], f'{ind} · 跌幅前 {iv["topn"]}'))
         p.append('</div></div>')
 
-    # 半导体三级（附在分行业面板之后，作为独立卡片）
-    p.append('<h2>二·A、半导体（申万二级）→ 三级行业明细</h2>')
+    # 半导体三级行业明细
+    p.append('<h2>二·B、半导体（申万二级）三级行业涨跌</h2>')
     p.append('<div class="card">')
     p.append('<div class="dyn"><div class="d">半导体 185 只成分全涨（仅半导体设备 1 只微跌），加权涨幅从分立器件 +11.05% 到数字芯片设计 +4.31%。结构上，分立器件领跑（18 只全涨，成交 268 亿），集成电路封测与模拟芯片设计紧随其后。数字芯片设计虽成交额最大（1574 亿）但涨幅最小，反映板块内部分化。</div></div>')
     p.append(semi_l3_table())
+    p.append('</div>')
+
+    # 半导体整体涨幅前20 / 跌幅前20
     semi_rows = [r for r in S['industries']['电子']['all'] if r.get('sub3')]
-    semi_rows.sort(key=lambda x: -x['pct'])
-    p.append(f'<div style="margin-top:20px">{stock_table(semi_rows[:20], "半导体 · 涨幅前 20", show_l3=True)}</div>')
-    p.append('<div style="margin-top:20px">')
-    semi_by_pct = sorted(semi_rows, key=lambda x: x['pct'])
-    p.append(stock_table(semi_by_pct[:10], "半导体 · 跌幅前 10", show_l3=True))
-    p.append('</div></div>')
+    semi_by_pct_asc = sorted(semi_rows, key=lambda x: x['pct'])
+    semi_by_pct_desc = sorted(semi_rows, key=lambda x: -x['pct'])
+    p.append('<div class="card">')
+    p.append(stock_table(semi_by_pct_desc[:20], '半导体 · 涨幅前 20', show_l3=True))
+    p.append('</div><div class="card">')
+    p.append(stock_table(semi_by_pct_asc[:20], '半导体 · 跌幅前 20', show_l3=True))
+    p.append('</div>')
+
+    # 各三级细分行业涨跌幅前五
+    p.append('<div class="card"><h3>半导体三级细分行业涨跌幅前五</h3>')
+    sub3_list = ['分立器件','半导体材料','数字芯片设计','模拟芯片设计','集成电路制造','集成电路封测','半导体设备']
+    p.append('<div class="tabs">')
+    for i, s3 in enumerate(sub3_list):
+        p.append(f'<div class="tab{" on" if i == 0 else ""}" data-st="{i}">{e(s3)}</div>')
+    p.append('</div>')
+    for i, s3 in enumerate(sub3_list):
+        ss = [r for r in semi_rows if r['sub3'] == s3]
+        ss_d = sorted(ss, key=lambda x: -x['pct'])
+        ss_a = sorted(ss, key=lambda x: x['pct'])
+        p.append(f'<div class="pane{" on" if i == 0 else ""}" id="s{i}">')
+        p.append(f'<div style="margin-bottom:16px">{stock_table(ss_d[:5], f"{s3} · 涨幅前五", show_l3=False)}</div>')
+        p.append(stock_table(ss_a[:5], f"{s3} · 跌幅前五", show_l3=False))
+        p.append('</div>')
+    p.append('</div>')
 
     p.append('<h2>三、相关指数与 ETF 成交量</h2>')
     p.append('<div class="card"><h3>主要指数（按 20 日量比降序）</h3>'
@@ -313,10 +334,21 @@ def build():
     p.append('''<footer>数据来源：Wind 金融数据库（行情/申万分类/指数/ETF）与公开财经媒体报道。
 本页面为量化复盘工具输出，所有内容仅供研究参考，不构成任何投资建议。</footer></div>
 <script>
-document.querySelectorAll('.tab').forEach(function(t){t.addEventListener('click',function(){
-document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')});
-document.querySelectorAll('.pane').forEach(function(x){x.classList.remove('on')});
-t.classList.add('on');document.getElementById('p'+t.dataset.t).classList.add('on');});});
+(function(){
+function tabs(sel,prefix){
+ document.querySelectorAll(sel).forEach(function(t){
+  t.addEventListener('click',function(){
+   document.querySelectorAll(sel).forEach(function(x){x.classList.remove('on')});
+   t.classList.add('on');
+   var id=prefix+(t.dataset.t||t.dataset.st);
+   document.querySelectorAll('[id^="'+prefix+'"]').forEach(function(x){x.classList.remove('on')});
+   document.getElementById(id).classList.add('on');
+  });
+ });
+}
+tabs('[data-t]','p');
+tabs('[data-st]','s');
+})();
 </script></body></html>''')
 
     f = os.path.join(SITE, 'index.html')

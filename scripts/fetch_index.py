@@ -3,9 +3,8 @@
 """指数/ETF 成交量 + 行业与龙头股拥挤度"""
 import pymysql, json, os
 
-DB = dict(host=os.environ.get('WIND_DB_HOST', ''), user=os.environ.get('WIND_DB_USER', ''),
-          password=os.environ.get('WIND_DB_PASS', ''), database=os.environ.get('WIND_DB_NAME', 'financedata'),
-          port=int(os.environ.get('WIND_DB_PORT', 3306)), charset='utf8')
+DB = dict(host='quantstudio.mysql.rds.aliyuncs.com', user='ncamc-lify-all',
+          password='Gjquant_ncamc!', database='financedata', port=3306, charset='utf8')
 OUT = os.path.dirname(os.path.abspath(__file__))
 IND = {'电子': '7605', '通信': '760r', '计算机': '760p', '传媒': '760q'}
 
