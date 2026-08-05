@@ -266,7 +266,7 @@ def build():
         p.append('</div></div>')
 
     # 半导体三级行业明细
-    p.append('<h2>二·B、半导体（申万二级）三级行业涨跌</h2>')
+    p.append('<h2>三、半导体细分赛道全景</h2>')
     p.append('<div class="card">')
     p.append(f'<div class="dyn"><div class="d">今日半导体板块整体走强（指数 +6.49%），电子化学品与半导体材料方向领涨，中巨芯-U（+20.01%）、有研硅（+17.62%）等近 20 只涨停。受 AI 数据中心投资高景气带动，DRAM/HBM 存储供需持续紧张，三星与 SK 海力士 Q2 业绩创新高，扩产节奏加快带动设备端需求上行。注：本日数据源为腾讯自选股（westock-data），暂不支持申万二级/三级细分。（昨日 Wind 数据显示半导体 7 个三级子行业仅半导体设备 1 只微跌。）</div></div>')
     p.append(semi_l3_table())
@@ -299,7 +299,7 @@ def build():
         p.append('</div>')
     p.append('</div>')
 
-    p.append('<h2>三、相关指数与 ETF 成交量</h2>')
+    p.append('<h2>四、相关指数与 ETF 成交量</h2>')
     p.append('<div class="card"><h3>主要指数（按 20 日量比降序）</h3>'
              '<div class="d" style="color:#6b7280;font-size:12.5px;margin-bottom:10px">'
              '量比 = 当日成交额 / N 日均成交额。&gt;1.1 视为放量（红），&lt;0.9 视为缩量（绿）。</div>'
@@ -308,7 +308,7 @@ def build():
              + etf_table() + '</div>')
 
     # 拥挤度
-    p.append('<h2>四、交易拥挤度</h2>')
+    p.append('<h2>五、交易拥挤度</h2>')
     p.append('''<div class="note"><b>口径说明：</b>行业拥挤度以「该行业成交额占全市场成交额比重」
 为核心指标，并给出该比重在最近 60 个交易日中的分位数。分位 ≥90% 记为极度拥挤，70%-90% 偏拥挤，
 40%-70% 中性，&lt;40% 不拥挤。个股层面用自由流通换手率：≥15% 过热，8%-15% 偏热。</div>''')
@@ -322,7 +322,7 @@ def build():
              + leader_crowd() + '</div>')
 
     # 来源
-    p.append('<h2>五、新闻来源汇总</h2><div class="card">')
+    p.append('<h2>六、新闻来源汇总</h2><div class="card">')
     for s in N['sources']:
         p.append(f'<div class="dyn"><div class="t"><a class="src" href="{e(s["url"])}" '
                  f'target="_blank" rel="noopener">{e(s["media"])}↗</a> {e(s["title"])}</div>'
