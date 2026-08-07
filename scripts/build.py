@@ -237,11 +237,21 @@ def build():
 
     # 全景解读
     p.append('<h2>一、当日市场全景与驱动</h2>')
-    p.append(f'''<div class="note"><b>一句话概括：</b>CPO 暴涨次日剧烈分化：美国 FCC 拟禁中国光模块
-重创中际旭创(-7.27%)与新易盛(-5.29%)，但半导体设备材料强势接力（中巨芯+20%/有研硅+18%），
-电子板块近 50 股涨停。电子加权 <b>{pct(S["industries"]["电子"]["pct_w"])}</b>
-领涨，通信 <b>{pct(S["industries"]["通信"]["pct_w"])}</b> 龙头暴跌、小盘补涨，
-科创50 +4.78%。两市成交 2.66 万亿、放量逾 4400 亿元。数据源：腾讯自选股 westock-data。</div>''')
+    elec = S["industries"]["电子"]
+    comm = S["industries"]["通信"]
+    comp = S["industries"]["计算机"]
+    media = S["industries"]["传媒"]
+    top_g = max(elec["gainers"][:3], key=lambda x: x["pct"])
+    top_l = max(elec["losers"][:3] + comm["losers"][:3], key=lambda x: abs(x["pct"]))
+    total_amt = sum(S["industries"][ind]["amt_yi"] for ind in ["电子","通信","计算机","传媒"])
+    p.append(f'<div class="note"><b>一句话概括：</b>'
+             f'科技连续暴涨后首日分化：PCB/半导体材料强势接力（{top_g["name"]}+{top_g["pct"]:.0f}%涨停），'
+             f'光通信龙头缩量企稳（中际旭创+0.77%/天孚+3.89%），存储受美股暴跌拖累走弱。'
+             f'电子加权 <b>{pct(elec["pct_w"])}</b>、通信 <b>{pct(comm["pct_w"])}</b> 领涨，'
+             f'计算机 <b>{pct(comp["pct_w"])}</b> 微涨、传媒 <b>{pct(media["pct_w"])}</b> 独跌。'
+             f'沪指+0.57%三连阳收复3900，两市成交 {total_amt:.0f} 亿缩量1300亿。'
+             f'FCC新规删除中国光模块字眼盘后情绪修复。'
+             f'数据源：Wind金融数据库 + Alpha派投研 + Web Search。</div>')
     p.append('<div class="card">')
     for m in N['macro']:
         p.append(f'<div class="dyn"><div class="t">{e(m["t"])}</div>'
@@ -268,7 +278,15 @@ def build():
     # 半导体三级行业明细
     p.append('<h2>三、半导体细分赛道全景</h2>')
     p.append('<div class="card">')
-    p.append(f'<div class="dyn"><div class="d">今日半导体板块整体走强（指数 +6.49%），电子化学品与半导体材料方向领涨，中巨芯-U（+20.01%）、有研硅（+17.62%）等近 20 只涨停。受 AI 数据中心投资高景气带动，DRAM/HBM 存储供需持续紧张，三星与 SK 海力士 Q2 业绩创新高，扩产节奏加快带动设备端需求上行。注：本日数据源为腾讯自选股（westock-data），暂不支持申万二级/三级细分。（昨日 Wind 数据显示半导体 7 个三级子行业仅半导体设备 1 只微跌。）</div></div>')
+    sl3 = S.get("semiconductor_l3", [])
+    top_l3 = sl3[0] if sl3 else {}
+    bot_l3 = sl3[-1] if sl3 else {}
+    p.append(f'<div class="dyn"><div class="d">半导体板块今日走势分化：封测+材料方向领涨（{top_l3.get("sub3","")}+{pct(top_l3.get("pct",0))}，{top_l3.get("n",0)}只全线上涨），{bot_l3.get("sub3","")}+{pct(bot_l3.get("pct",0))}。'
+             f'日本JSR光刻胶涨价15%+高盛上调AI PCB/CCL预测+中报业绩兑现，半导体上游材料逻辑强化。'
+             f'封测长电科技涨停，先进封装扩产潮+条例修订+国际封装技术会议(8/5-8/7西安)催化。'
+             f'但数字芯片设计微跌，存储因美股重挫(西部数据-13%)拖累，板块内部分化明显。'
+             f'蓝宝书显示先进封装玻璃基板产业化加速(热度5/5)。'
+             f'数据源：Wind金融数据库 + Alpha派投研。</div></div>')
     p.append(semi_l3_table())
     p.append('</div>')
 
@@ -314,10 +332,7 @@ def build():
 40%-70% 中性，&lt;40% 不拥挤。个股层面用自由流通换手率：≥15% 过热，8%-15% 偏热。</div>''')
     p.append('<div class="card"><h3>行业层面拥挤度</h3>' + crowd_table() + '''
 <div class="dyn" style="margin-top:14px"><div class="d">
-<b>注：</b>本日数据源为腾讯自选股（westock-data），暂不支持 60 日历史分位数计算。
-换手率数据为当日截面，拥挤度分位和成交占比为近似值。
-电子成交额约 7816 亿居四行业之首，通信 2727 亿次之。
-龙头股层面，中际旭创换手 6.52%、新易盛 6.94%，未至过热水平但主力净流出巨大。</div></div></div>''')
+<b>解读：</b>电子拥挤度60日分位仅15%处于低位修复区，通信63%中性，但计算机95%+传媒93%处于极度拥挤——公募越跌越加，科技整体筹码压力未解除。流入端通信23亿主力净流入居全行业第一，电子11亿次之；流出端计算机-69亿+传媒-58亿排名全市场前二。资金偏好从软应用向硬上游迁移明确。</div></div></div>''')
     p.append('<div class="card"><h3>行业龙头股拥挤度（各行业成交额前 8）</h3>'
              + leader_crowd() + '</div>')
 
