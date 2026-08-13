@@ -245,12 +245,11 @@ def build():
     top_l = max(elec["losers"][:3] + comm["losers"][:3], key=lambda x: abs(x["pct"]))
     total_amt = sum(S["industries"][ind]["amt_yi"] for ind in ["电子","通信","计算机","传媒"])
     p.append(f'<div class="note"><b>一句话概括：</b>'
-             f'科技连续暴涨后首日分化：PCB/半导体材料强势接力（{top_g["name"]}+{top_g["pct"]:.0f}%涨停），'
-             f'光通信龙头缩量企稳（中际旭创+0.77%/天孚+3.89%），存储受美股暴跌拖累走弱。'
-             f'电子加权 <b>{pct(elec["pct_w"])}</b>、通信 <b>{pct(comm["pct_w"])}</b> 领涨，'
-             f'计算机 <b>{pct(comp["pct_w"])}</b> 微涨、传媒 <b>{pct(media["pct_w"])}</b> 独跌。'
-             f'沪指+0.57%三连阳收复3900，两市成交 {total_amt:.0f} 亿缩量1300亿。'
-             f'FCC新规删除中国光模块字眼盘后情绪修复。'
+             f'TMT全线反弹：通信 <b>{pct(comm["pct_w"])}</b> 领涨（Lumentum财报超预期+FCC担忧弱化，CPO/光通信爆发，'
+             f'长进光子尾盘20cm涨停破300元），电子 <b>{pct(elec["pct_w"])}</b>（杰理科技北交所IPO首日+182% + 半导体/PCB共振），'
+             f'传媒 <b>{pct(media["pct_w"])}</b>（北京文化3连板、风语筑涨停）、计算机 <b>{pct(comp["pct_w"])}</b>（算力租赁）。'
+             f'沪指+0.32%报3946点、创业板指+1.49%，两市成交 {total_amt:.0f} 亿缩量1686亿。'
+             f'核心主线：海外AI算力链业绩+订单双超预期（Lumentum/CoreWeave/Nebius）+ 腾讯Q2资本开支527.8亿(+176%)。'
              f'数据源：Wind金融数据库 + Alpha派投研 + Web Search。</div>')
     p.append('<div class="card">')
     for m in N['macro']:
@@ -281,11 +280,11 @@ def build():
     sl3 = S.get("semiconductor_l3", [])
     top_l3 = sl3[0] if sl3 else {}
     bot_l3 = sl3[-1] if sl3 else {}
-    p.append(f'<div class="dyn"><div class="d">半导体板块今日走势分化：封测+材料方向领涨（{top_l3.get("sub3","")}+{pct(top_l3.get("pct",0))}，{top_l3.get("n",0)}只全线上涨），{bot_l3.get("sub3","")}+{pct(bot_l3.get("pct",0))}。'
-             f'日本JSR光刻胶涨价15%+高盛上调AI PCB/CCL预测+中报业绩兑现，半导体上游材料逻辑强化。'
-             f'封测长电科技涨停，先进封装扩产潮+条例修订+国际封装技术会议(8/5-8/7西安)催化。'
-             f'但数字芯片设计微跌，存储因美股重挫(西部数据-13%)拖累，板块内部分化明显。'
-             f'蓝宝书显示先进封装玻璃基板产业化加速(热度5/5)。'
+    p.append(f'<div class="dyn"><div class="d">半导体板块今日普涨：分立器件领涨（{top_l3.get("sub3","")}+{pct(top_l3.get("pct",0))}，{top_l3.get("n",0)}只中{top_l3.get("up",0)}涨），'
+             f'数字芯片设计+4.53%、集成电路制造+2.91%（7只全线上涨）、半导体材料+2.87%、半导体设备+2.37%、封测+1.22%、模拟芯片设计+1.09%。'
+             f'驱动：SK海力士重启大连NAND闪存二号工厂（产能扩容约50%）+DRAM价格上行+台股电子7月营收高增（台积电+44.69%/日月光+43.15%/国巨+51.51%）。'
+             f'PCB/CCL材料升级逻辑强化：机构上修AI服务器PCB/CCL市场空间，PTFE树脂在高阶板材(M9/M10)加速渗透，mSAP工艺放量。'
+             f'半导体设备/材料国产替代与AI算力扩张双轮驱动，板块由"业绩验证+技术升级"共振。'
              f'数据源：Wind金融数据库 + Alpha派投研。</div></div>')
     p.append(semi_l3_table())
     p.append('</div>')
@@ -332,7 +331,7 @@ def build():
 40%-70% 中性，&lt;40% 不拥挤。个股层面用自由流通换手率：≥15% 过热，8%-15% 偏热。</div>''')
     p.append('<div class="card"><h3>行业层面拥挤度</h3>' + crowd_table() + '''
 <div class="dyn" style="margin-top:14px"><div class="d">
-<b>解读：</b>电子拥挤度60日分位仅15%处于低位修复区，通信63%中性，但计算机95%+传媒93%处于极度拥挤——公募越跌越加，科技整体筹码压力未解除。流入端通信23亿主力净流入居全行业第一，电子11亿次之；流出端计算机-69亿+传媒-58亿排名全市场前二。资金偏好从软应用向硬上游迁移明确。</div></div></div>''')
+<b>解读：</b>电子成交占全市场27.67%但60日分位仅5%（占比持续抬升中、尚处上升通道），通信8.31%分位58%中性，计算机5.52%分位63%中性；传媒2.68%但分位93%处于极度拥挤（占比绝对低但换手活跃，需警惕获利了结）。资金端电子+149亿、通信+127亿主力净流入居前，光通信+130亿、芯片+229亿、CPO+165亿领衔概念流入；计算机遭净流出超10亿。资金明确从软应用向硬上游（光通信/半导体/PCB）迁移。</div></div></div>''')
     p.append('<div class="card"><h3>行业龙头股拥挤度（各行业成交额前 8）</h3>'
              + leader_crowd() + '</div>')
 
