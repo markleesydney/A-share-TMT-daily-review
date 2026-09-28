@@ -3,16 +3,34 @@
 """指数/ETF 成交量 + 行业与龙头股拥挤度"""
 import pymysql, json, os
 
+import time
 DB = dict(host='quantstudio.mysql.rds.aliyuncs.com', user='ncamc-lify-all',
-          password='Gjquant_ncamc!', database='financedata', port=3306, charset='utf8')
+          password='Gjquant_ncamc!', database='financedata', port=3306, charset='utf8',
+          connect_timeout=30, read_timeout=300, write_timeout=60)
 OUT = os.path.dirname(os.path.abspath(__file__))
 IND = {'电子': '7605', '通信': '760r', '计算机': '760p', '传媒': '760q'}
+
+
+def _conn():
+    return pymysql.connect(**DB)
 
 
 def q(cur, sql, args=None):
     cur.execute(sql, args or ())
     cols = [d[0] for d in cur.description]
     return [dict(zip(cols, r)) for r in cur.fetchall()]
+
+
+def qr(cur, sql, args=None, tries=3):
+    """带重连重试的查询"""
+    last = None
+    for i in range(tries):
+        try:
+            return q(cur, sql, args)
+        except Exception as e:
+            last = e
+            time.sleep(2 * (i + 1))
+    raise last
 
 
 def main():
